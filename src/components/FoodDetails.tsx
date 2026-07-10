@@ -1,0 +1,2 @@
+import type { DecodedFood } from '../api/foodApi'
+export function FoodDetails({ food }: { food: DecodedFood }) { if (!food.commonPortion) return null; return <details className="rounded-[28px] border border-slate-200 bg-white px-6 py-5 shadow-sm"><summary className="cursor-pointer font-semibold text-slate-900">Reference portion</summary><p className="mt-4 text-sm text-slate-700">{food.commonPortion.description} ({food.commonPortion.grams} g). Nutrition values above remain standardized to 100 g.</p></details> }
