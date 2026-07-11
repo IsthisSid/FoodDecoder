@@ -1,0 +1,61 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`dietary evidence snapshots > classifies direct ingredient, precautionary, and trigger evidence deterministically 1`] = `
+[
+  {
+    "matchedText": "WHEY",
+    "profile": "milk",
+    "reason": "Ingredient list includes “WHEY”.",
+    "source": "USDA Branded Foods ingredient list",
+    "status": "contains",
+  },
+  {
+    "matchedText": "WALNUTS",
+    "profile": "tree-nut",
+    "reason": "Ingredient list includes “WALNUTS”.",
+    "source": "USDA Branded Foods ingredient list",
+    "status": "contains",
+  },
+  {
+    "matchedText": "SESAME",
+    "profile": "sesame",
+    "reason": "Precautionary label wording mentions “SESAME”.",
+    "source": "USDA Branded Foods ingredient list",
+    "status": "may-contain",
+  },
+  {
+    "matchedText": undefined,
+    "profile": "gluten",
+    "reason": "No matching ingredient is listed; precautionary cross-contact wording is present.",
+    "source": "USDA Branded Foods ingredient list",
+    "status": "no-listed-ingredient",
+  },
+  {
+    "matchedText": "TOMATO",
+    "profile": "gerd",
+    "reason": "Ingredient “TOMATO” is in a category commonly linked to symptoms for some people with GERD.",
+    "source": "NIDDK GERD dietary guidance",
+    "status": "potential-trigger",
+  },
+]
+`;
+
+exports[`dietary evidence snapshots > keeps generic-food allergy evidence unknown while surfacing cited GERD evidence 1`] = `
+[
+  {
+    "profile": "milk",
+    "source": "USDA Foundation Foods",
+    "status": "unknown",
+  },
+  {
+    "profile": "gluten",
+    "source": "USDA Foundation Foods",
+    "status": "unknown",
+  },
+  {
+    "profile": "gerd",
+    "source": "NIDDK GERD dietary guidance",
+    "status": "potential-trigger",
+  },
+]
+`;

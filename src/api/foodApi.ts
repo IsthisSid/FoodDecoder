@@ -1,4 +1,4 @@
-import { evaluateIngredientEvidence, type DietaryEvidence } from '../data/dietaryEvidence'
+import { evaluateGenericFoodEvidence, evaluateIngredientEvidence, type DietaryEvidence } from '../data/dietaryEvidence'
 
 export type SearchMode = 'name' | 'barcode'
 export type NutritionSnapshot = { nutritionBasis: '100g'; calories?: number; protein?: number; carbohydrates?: number; fat?: number; fiber?: number; sugar?: number; sodium?: number }
@@ -31,5 +31,5 @@ export async function decodeFood(query: string, mode: SearchMode): Promise<Decod
   const trimmed = query.trim(); if (!trimmed) throw new Error('Enter a food name or barcode.')
   if (mode === 'barcode' || /^\d{8,14}$/.test(trimmed)) return decodeBarcode(trimmed)
   const food = selectBestLocalFood((await loadIndex()).foods, trimmed); if (!food) throw new Error('No USDA food match found. Try a more specific food name.')
-  return { id: food.id, name: food.name, category: food.category, nutrition: { ...food.nutrition, nutritionBasis: '100g' }, sources: [food.source], commonPortion: food.commonPortion, dietaryEvidence: evaluateIngredientEvidence() }
+  return { id: food.id, name: food.name, category: food.category, nutrition: { ...food.nutrition, nutritionBasis: '100g' }, sources: [food.source], commonPortion: food.commonPortion, dietaryEvidence: evaluateGenericFoodEvidence(food.name, food.source) }
 }

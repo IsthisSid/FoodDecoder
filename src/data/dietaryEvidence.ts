@@ -45,3 +45,12 @@ export function evaluateIngredientEvidence(ingredients?: string): DietaryEvidenc
   findings.push(trigger ? { profile: 'gerd', status: 'potential-trigger', matchedText: trigger, reason: `Ingredient “${trigger}” is in a category commonly linked to symptoms for some people with GERD.`, source: gerdSource } : { profile: 'gerd', status: 'unknown', reason: 'No supported potential-trigger ingredient was identified from this label.', source: gerdSource })
   return findings
 }
+
+export function evaluateGenericFoodEvidence(name: string, source: { label: string; releaseDate: string }): DietaryEvidence[] {
+  const genericSource = { label: source.label, reviewedDate: source.releaseDate }
+  const tomatoOrCitrus = /\b(tomato(?:es)?|orange|lemon|lime|grapefruit|citrus)\b/i.test(name)
+  return dietaryProfiles.map((profile) => {
+    if (profile.id === 'gerd' && tomatoOrCitrus) return { profile: 'gerd', status: 'potential-trigger', matchedText: name, reason: 'This generic food is an acidic food category commonly linked to symptoms for some people with GERD.', source: gerdSource }
+    return { profile: profile.id, status: 'unknown', reason: 'This generic USDA record does not provide an ingredient or allergen statement.', source: genericSource }
+  })
+}

@@ -1,0 +1,29 @@
+name: Bug report
+description: Report a reproducible Food Decoder defect.
+title: '[Bug]: '
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected evidence or result
+      description: Include the expected source and evidence state where applicable.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Select …
+        2. Search or scan …
+        3. Observe …
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Food source or barcode
+      description: Do not include personal health information.

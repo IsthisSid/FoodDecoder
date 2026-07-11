@@ -1,0 +1,26 @@
+name: Evidence rule request
+description: Propose a sourced deterministic evidence rule.
+title: '[Evidence]: '
+labels: [evidence]
+body:
+  - type: input
+    attributes:
+      label: Dietary profile
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposed rule and evidence state
+      description: State exactly when the rule should return Contains, May contain, Unknown, or Potential trigger.
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Primary source URL
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Limitations and counterexamples
+    validations:
+      required: true

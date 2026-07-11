@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { decodeFood, selectBestLocalFood } from './foodApi'
-import { evaluateIngredientEvidence } from '../data/dietaryEvidence'
+import { evaluateGenericFoodEvidence, evaluateIngredientEvidence } from '../data/dietaryEvidence'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -42,5 +42,10 @@ describe('ingredient evidence', () => {
     expect(evidence.find((item) => item.profile === 'milk')?.status).toBe('contains')
     expect(evidence.find((item) => item.profile === 'tree-nut')?.status).toBe('contains')
     expect(evidence.find((item) => item.profile === 'gluten')?.status).toBe('no-listed-ingredient')
+  })
+
+  it('reports a cited GERD potential trigger for a generic tomato record', () => {
+    const evidence = evaluateGenericFoodEvidence('Tomato, roma', source)
+    expect(evidence.find((item) => item.profile === 'gerd')).toMatchObject({ status: 'potential-trigger', source: { label: 'NIDDK GERD dietary guidance' } })
   })
 })

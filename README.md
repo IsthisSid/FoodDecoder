@@ -37,6 +37,7 @@ Raw USDA downloads belong in `data/raw/usda/` and are ignored by Git. The app us
 npm install
 npm run build:data
 npm run build:branded
+npm run verify:branded
 npm run dev
 ```
 
@@ -50,6 +51,8 @@ npm run build:branded
 
 `build:branded` streams the 3.3 GB raw Branded Foods JSON without loading it all into memory. It keeps barcode records with ingredient statements, selects the newest publication per barcode, and writes 256 static lookup shards.
 
+`verify:branded` validates every generated barcode shard for record counts, source release, barcode uniqueness, hash placement, and required ingredient evidence.
+
 ## Quality checks
 
 ```bash
@@ -57,6 +60,8 @@ npm run build
 npm run lint
 npx vitest run
 ```
+
+For contributors, `npm run check` runs linting, unit and snapshot tests, and the production build in one command. See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and [docs/DATA_GOVERNANCE.md](docs/DATA_GOVERNANCE.md).
 
 ## GitHub Pages
 
