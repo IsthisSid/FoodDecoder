@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { decodeFood, selectBestLocalFood } from './foodApi'
+import { evaluateIngredientEvidence } from '../data/dietaryEvidence'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -29,7 +30,17 @@ describe('decodeFood', () => {
     await expect(decodeFood('apple', 'name')).resolves.toMatchObject({ name: 'Apples, raw, with skin', sources: [source] })
   })
 
-  it('explains that barcode lookup is outside the generic USDA dataset', async () => {
-    await expect(decodeFood('012345678901', 'barcode')).rejects.toThrow('Barcode lookup is not available')
+  it('finds a local branded barcode record and provides ingredient evidence', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ([{ id: '100', barcode: '012345678901', name: 'Test granola', ingredients: 'OATS, WALNUTS, WHEY', nutrition: { calories: 400 }, source: { id: 'branded', label: 'USDA Branded Foods', releaseDate: '2026-04-30', publicationDate: '2026-04-01' } }]) }))
+    await expect(decodeFood('012345678901', 'barcode')).resolves.toMatchObject({ name: 'Test granola', barcode: '012345678901' })
+  })
+})
+
+describe('ingredient evidence', () => {
+  it('reports declared ingredients without claiming cross-contact safety', () => {
+    const evidence = evaluateIngredientEvidence('OATS, WALNUTS, WHEY')
+    expect(evidence.find((item) => item.profile === 'milk')?.status).toBe('contains')
+    expect(evidence.find((item) => item.profile === 'tree-nut')?.status).toBe('contains')
+    expect(evidence.find((item) => item.profile === 'gluten')?.status).toBe('no-listed-ingredient')
   })
 })

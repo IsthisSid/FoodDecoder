@@ -1,56 +1,35 @@
+import { evaluateIngredientEvidence, type DietaryEvidence } from '../data/dietaryEvidence'
+
 export type SearchMode = 'name' | 'barcode'
 export type NutritionSnapshot = { nutritionBasis: '100g'; calories?: number; protein?: number; carbohydrates?: number; fat?: number; fiber?: number; sugar?: number; sodium?: number }
-export type DietaryKey = 'vegetarian' | 'vegan' | 'dairyFree' | 'glutenFree' | 'eggFree' | 'soyFree'
-export type FoodSource = { id: 'foundation' | 'sr-legacy' | 'fndds'; label: string; releaseDate: string }
-export interface DietaryResult { tags: Record<DietaryKey, boolean | undefined>; allergens: string[]; ingredientsOfInterest: string[]; highlyProcessed: boolean }
-export interface DecodedFood { id: string; name: string; category?: string; nutrition: NutritionSnapshot; dietary: DietaryResult; sources: FoodSource[]; commonPortion?: { description: string; grams: number } }
-type LocalFood = Omit<DecodedFood, 'dietary' | 'sources'> & { source: FoodSource; priority: number }
+export type FoodSource = { id: 'foundation' | 'sr-legacy' | 'fndds' | 'branded'; label: string; releaseDate: string; publicationDate?: string; modifiedDate?: string }
+export interface DecodedFood { id: string; barcode?: string; name: string; brand?: string; category?: string; ingredients?: string; nutrition: NutritionSnapshot; sources: FoodSource[]; commonPortion?: { description: string; grams: number }; dietaryEvidence: DietaryEvidence[] }
+type LocalFood = Omit<DecodedFood, 'dietaryEvidence' | 'sources'> & { source: FoodSource; priority: number }
 type LocalIndex = { generatedAt: string; foods: LocalFood[] }
+type BrandedFood = Omit<DecodedFood, 'sources' | 'dietaryEvidence' | 'commonPortion'> & { servingSize?: number; servingUnit?: string; servingText?: string; source: FoodSource }
 
-export function evaluateDietaryRules(ingredients: string[]): DietaryResult {
-  // USDA generic records normally do not include an ingredient declaration; absence is unknown, never safe.
-  if (!ingredients.length) return { tags: { vegetarian: undefined, vegan: undefined, dairyFree: undefined, glutenFree: undefined, eggFree: undefined, soyFree: undefined }, allergens: [], ingredientsOfInterest: [], highlyProcessed: false }
-  return { tags: { vegetarian: undefined, vegan: undefined, dairyFree: undefined, glutenFree: undefined, eggFree: undefined, soyFree: undefined }, allergens: [], ingredientsOfInterest: [], highlyProcessed: false }
-}
+const asset = (file: string) => `${import.meta.env.BASE_URL}data/${file}`
+const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+const canonicalBarcode = (value: string) => value.replace(/\D/g, '').replace(/^0+/, '') || '0'
+function searchForms(query: string): string[] { const normalized = normalize(query); const singular = normalized.split(' ').map((token) => token.endsWith('s') && token.length > 3 ? token.slice(0, -1) : token).join(' '); return [...new Set([normalized, singular])] }
+function matchScore(name: string, query: string): number { return Math.max(...searchForms(query).flatMap((target) => searchForms(name).map((candidate) => candidate === target ? 100 : candidate.startsWith(`${target} `) ? 85 : candidate.includes(target) ? 60 : target.split(' ').every((token) => candidate.includes(token)) ? target.split(' ').length * 15 : 0))) }
+function barcodeShard(value: string): string { let hash = 2166136261; for (const char of value) { hash ^= char.charCodeAt(0); hash = Math.imul(hash, 16777619) } return ((hash >>> 16) % 256).toString(16).padStart(2, '0') }
 
 let indexPromise: Promise<LocalIndex> | undefined
-async function loadIndex(): Promise<LocalIndex> {
-  indexPromise ??= fetch('/data/usda-food-index.json').then(async (response) => {
-    if (!response.ok) throw new Error('The local USDA food index could not be loaded.')
-    return response.json() as Promise<LocalIndex>
-  })
-  return indexPromise
+async function loadIndex(): Promise<LocalIndex> { indexPromise ??= fetch(asset('usda-food-index.json')).then(async (response) => { if (!response.ok) throw new Error('The local USDA food index could not be loaded.'); return response.json() as Promise<LocalIndex> }); return indexPromise }
+export function selectBestLocalFood(foods: LocalFood[], query: string): LocalFood | null { const queryTerms = normalize(query); const scored = foods.map((food) => { let score = matchScore(food.name, query) + food.priority * 2; const name = normalize(food.name); if (!queryTerms.includes('overripe') && name.includes('overripe')) score -= 10; if (!queryTerms.includes('overripe') && name.includes('ripe and slightly ripe')) score += 4; return { food, score } }).filter(({ score }) => score > 0); return scored.sort((left, right) => right.score - left.score)[0]?.food ?? null }
+
+async function decodeBarcode(value: string): Promise<DecodedFood> {
+  const barcode = canonicalBarcode(value); const shard = barcodeShard(value.replace(/\D/g, ''))
+  const response = await fetch(asset(`branded/${shard}.json`)); if (!response.ok) throw new Error('The local branded-food index could not be loaded.')
+  const product = (await response.json() as BrandedFood[]).find((item) => canonicalBarcode(item.barcode ?? '') === barcode)
+  if (!product) throw new Error('No matching barcode was found in the local USDA Branded Foods release.')
+  return { id: product.id, barcode: product.barcode, name: product.name, brand: product.brand, category: product.category, ingredients: product.ingredients, nutrition: { ...product.nutrition, nutritionBasis: '100g' }, sources: [product.source], commonPortion: product.servingSize ? { description: product.servingText || 'Label serving', grams: product.servingSize } : undefined, dietaryEvidence: evaluateIngredientEvidence(product.ingredients) }
 }
 
-const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
-function searchForms(query: string): string[] { const normalized = normalize(query); const singular = normalized.split(' ').map((token) => token.endsWith('s') && token.length > 3 ? token.slice(0, -1) : token).join(' '); return [...new Set([normalized, singular])] }
-function matchScore(name: string, query: string): number {
-  return Math.max(...searchForms(query).flatMap((target) => searchForms(name).map((candidate) => {
-    if (!target || !candidate) return 0
-    if (candidate === target) return 100
-    if (candidate.startsWith(`${target} `)) return 85
-    if (candidate.includes(target)) return 60
-    const tokens = target.split(' ')
-    return tokens.every((token) => candidate.includes(token)) ? tokens.length * 15 : 0
-  })))
-}
-export function selectBestLocalFood(foods: LocalFood[], query: string): LocalFood | null {
-  const queryTerms = normalize(query)
-  const scored = foods.map((food) => {
-    let score = matchScore(food.name, query) + food.priority * 2
-    const name = normalize(food.name)
-    // A plain fruit query should not default to an unusually ripe variant.
-    if (!queryTerms.includes('overripe') && name.includes('overripe')) score -= 10
-    if (!queryTerms.includes('overripe') && name.includes('ripe and slightly ripe')) score += 4
-    return { food, score }
-  }).filter(({ score }) => score > 0)
-  return scored.sort((left, right) => right.score - left.score)[0]?.food ?? null
-}
 export async function decodeFood(query: string, mode: SearchMode): Promise<DecodedFood> {
-  const trimmed = query.trim()
-  if (!trimmed) throw new Error('Enter a food name.')
-  if (mode === 'barcode' || /^\d{6,14}$/.test(trimmed)) throw new Error('Barcode lookup is not available in the local USDA generic-food dataset yet.')
-  const food = selectBestLocalFood((await loadIndex()).foods, trimmed)
-  if (!food) throw new Error('No USDA food match found. Try a more specific food name.')
-  return { id: food.id, name: food.name, category: food.category, nutrition: { ...food.nutrition, nutritionBasis: '100g' }, dietary: evaluateDietaryRules([]), sources: [food.source], commonPortion: food.commonPortion }
+  const trimmed = query.trim(); if (!trimmed) throw new Error('Enter a food name or barcode.')
+  if (mode === 'barcode' || /^\d{8,14}$/.test(trimmed)) return decodeBarcode(trimmed)
+  const food = selectBestLocalFood((await loadIndex()).foods, trimmed); if (!food) throw new Error('No USDA food match found. Try a more specific food name.')
+  return { id: food.id, name: food.name, category: food.category, nutrition: { ...food.nutrition, nutritionBasis: '100g' }, sources: [food.source], commonPortion: food.commonPortion, dietaryEvidence: evaluateIngredientEvidence() }
 }
